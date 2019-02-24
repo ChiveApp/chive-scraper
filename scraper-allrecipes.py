@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import re
-from mathmaticians import simple_get
+from scraperConnection import simple_get
 from bs4 import BeautifulSoup
 
 # TODO use threads for recipes?
@@ -26,9 +26,6 @@ from bs4 import BeautifulSoup
 
 
 
-
-# Might be silly to do
-search_types = [("Category", 0), ("Ingredient", 1), ("Name",2)]
 
 
 def get_name_search_html(query):
@@ -101,42 +98,78 @@ def get_recipes(search_type,num_recipes, query):
 def get_recipe_info(url):
     raw_recipe_html = simple_get(url)
     recipe_html = BeautifulSoup(raw_recipe_html, "html.parser")
-    get_recipe_name(recipe_html)
-    get_rating(recipe_html)
-    get_time_info(recipe_html)
-    get_ingredients(recipe_html)
-    get_directions(recipe_html)
 
 
-# Category items : <meta itemprop="recipeCategory" ...>
-#
+    name = get_recipe_name(recipe_html)
+    rating = get_rating(recipe_html)
+    cook_time = get_time_info(recipe_html)
+    ingredients = get_ingredients(recipe_html)
+    directions = get_directions(recipe_html)
 
 
-# html = BeautifulSoup(raw_html, 'html.parser')
 
-# for i, li in enumerate(html.find_all('li', {"class":"wprm-recipe-ingredient"})):
-#     print(i, li.text)
+
 
 # Title
 def get_recipe_name(html):
     for i, li in enumerate(html.find_all("h1", {"class":"recipe-summary__h1"})):
-        print(li.text.strip()) #TODO get this in a better form
+        return(li.text.strip()) #TODO get this in a better form
 
-# This gets ingredients but also includes the random add all ingredients line
-# in the future we may want to split the quantity and the item
 
-# For splitting the ingredients we should have the ounces multiplied by number
-# the ounces seem to be denoted in parens
-# measurements seem to be all fully written out not just abbreviated
-# (ingredient, unit, amount)
 def get_ingredients(html):
+
+
+    units = ["teaspoons ", "teaspoon ", "tablespoons ", "tablespoon ", "cups ", "cup ", " ounces", " ounce", "pounds ", "pound "]
+    #units = ["teaspoon", "tablespoon", "cup", "ounce","pound"]
+
     ingredients = []
     for i, li in enumerate(html.find_all('li', {"class":"checkList__line"})):
 
+        ingredient_string = li.text.strip()
+        #ingredients.append(li.text.strip())
 
-        ingredients.append(li.text.strip())
 
-    print(ingredients)
+        if ingredient_string == "Add all ingredients to list":
+            return
+
+        ingredient_split_list = []
+        for unit in units:
+            if unit in ingredient_string:
+                ingredient_string = ingredient_string.replace(unit, "")
+                break
+            unit = None
+        #ingredient_split_list = ingredient_string.split(" ")
+
+        ingredient_split_list = re.sub('[()]', '', ingredient_string).split(" ")
+
+        print(ingredient_split_list)
+
+        for elem in ingredient_split_list:
+            if "/" in elem:
+                ingredient_split_list[ingredient_split_list.index(elem)] = float(elem[0])/float(elem[2])
+
+
+        if unit == " ounce" or unit == " ounces":
+            quantity = float(ingredient_split_list[0])*float(ingredient_split_list[1])
+
+            del ingredient_split_list[0]
+            del ingredient_split_list[0]
+            ingredient = " ".join(ingredient_split_list)
+        else:
+            quantity = float(ingredient_split_list[0])
+            del ingredient_split_list[0]
+
+            ingredient = " ".join(ingredient_split_list)
+
+        ingredients.append([ingredient, unit, quantity])
+
+        # print("QUANTITY: ", quantity)
+        # print("UNIT: ", unit)
+        # print("INGREDIENT: ", ingredient)
+    return(ingredients)   
+
+
+
 
 # for i, li in enumerate(html.find_a)
 
@@ -158,22 +191,20 @@ def get_time_info(html):
                 total = (int(hours)*3600 + int(mins)*60)
             elif "h" in time and "m" not in time:
                 hours = time.split("h")
-                print(hours)
                 total = (int(hours)*3600)
 
             else:
                 mins = time.partition("m")[0]
                 total = int(mins) * 60
-            print(total)
 
-
+    return total
 
 # Directions
 def get_directions(html):
     directions = []
     for i, li in enumerate(html.find_all('li', {"class":"step"})):
         directions.append(li.text.strip())
-    print(directions)
+    return directions
 
 # Ratinginfo
 
@@ -184,9 +215,9 @@ def get_rating(html):
 # this is randomly causing an error...
     if rating is not None:
         rating = round(float(rating["content"]), 1)
-        print(rating)
+        return(rating)
     else:
-        print("Rating unavailable")
+        return(0.0)
 
 
 # Photo (if we can get into database)
