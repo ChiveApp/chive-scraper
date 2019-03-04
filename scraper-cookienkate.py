@@ -57,12 +57,13 @@ def get_recipe_info(url):
     get_recipe_description(recipe_html)
     name = get_recipe_name(recipe_html)
     print(name)
-    # rating = get_rating(recipe_html)
+    rating = get_rating(recipe_html)
+    print(rating)
     cook_time = get_time_info(recipe_html)
-    print(cook_time)
+    print("{} seconds".format(cook_time))
     ingredients = get_ingredients(recipe_html)
+    print(ingredients)
     directions = get_directions(recipe_html)
-    print(directions)
 
 
 
@@ -78,64 +79,42 @@ def get_recipe_description(html):
         print(li.text.strip())
 
 def get_ingredients(html):
+    '''
+    This function scrapes ingredients from a single recipe page on the Cookie and Kate site. 
+    Params: html 
+    Return: ingredients [(Quantity, Unit, Ingredient)]
+    '''
 
 
-    units = ["teaspoons ", "teaspoon ", "tablespoons ", "tablespoon ", "cups ", "cup ", "ounces ", "ounce ", "pounds ", "pound "]
-    #units = ["teaspoon", "tablespoon", "cup", "ounce","pound"]
+    units = [" teaspoons ", " teaspoon ", " tablespoons ", " tablespoon ", " cups ", " cup ", " ounces ", " ounce ", " pounds ", " pound "]
 
     ingredients = []
-    #for i, li in enumerate(html.find_all('li', {"class":"tasty-recipe-ingredients"})):
-    for i, li in enumerate(html.find_all('li', {"class":"tasty-recipe-ingredients"})):
+    ingredient_string = None
+    unit_found = False
+    for i, div in enumerate(html.find_all('div', {"class":"tasty-recipe-ingredients"})):
+        for li in div.find_all("li"):
+            ingredient_string = li.text.strip()
 
-        ingredient_string = li.text.strip()
-        ingredients.append(ingredient_string)
-
-        print(ingredient_string)
-
-    #     ingredient_split_list = []
-    #     for unit in units:
-    #         if unit in ingredient_string:
-    #             ingredient_string = ingredient_string.replace(unit, "")
-    #             break
-    #         unit = None
-    #     #ingredient_split_list = ingredient_string.split(" ")
-
-    #     ingredient_split_list = re.sub('[()]', '', ingredient_string).split(" ")
-
-    #     print(ingredient_split_list)
-
-    #     for elem in ingredient_split_list:
-    #         if "/" in elem:
-    #             ingredient_split_list[ingredient_split_list.index(elem)] = float(elem[0])/float(elem[2])
+            # We are going to split up the ingredient string by measurement first
+            for unit in units:
+                if unit in ingredient_string:
+                    ingredient_string = ingredient_string.split(unit)
+                    unit_found = True
+                    break
+            if not unit_found:
+                # What's a better name to give this? Item? 
+                unit = "Unit"
+            quantity = ingredient_string[0]
+            ingredient = ingredient_string[1]
 
 
-    #     if unit == " ounce" or unit == " ounces":
-    #         quantity = float(ingredient_split_list[0])*float(ingredient_split_list[1])
-
-    #         del ingredient_split_list[0]
-    #         del ingredient_split_list[0]
-    #         ingredient = " ".join(ingredient_split_list)
-    #     else:
-    #         quantity = float(ingredient_split_list[0])
-    #         del ingredient_split_list[0]
-
-    #         ingredient = " ".join(ingredient_split_list)
-
-    #     ingredients.append([ingredient, unit, quantity])
-
-    #     # print("QUANTITY: ", quantity)
-    #     # print("UNIT: ", unit)
-    #     # print("INGREDIENT: ", ingredient)
-    # return(ingredients)   
+            ingredients.append([quantity, unit, ingredient])
+       #ingredients = ingredient_string.split()
+    return(ingredients)
 
 
 
 
-# for i, li in enumerate(html.find_a)
-
-# Time info
-# li class="prepTime__item" 3 of them usually
-# They aria-labels which may or may not be an issue
 
 # Time return is in seconds
 def get_time_info(html):
@@ -160,10 +139,12 @@ def get_time_info(html):
 
 # Directions
 def get_directions(html):
-    directions = []
+    #directions = []
     for i, li in enumerate(html.find_all('div',"tasty-recipe-instructions")):
     #print(html.find_all('li', {"class":"tasty-recipe-instructions"}))
-        directions.append(li.text.strip())
+       directions = li.text.strip()
+
+    directions = directions.split('.')
     return directions
 
 # Ratinginfo
@@ -171,10 +152,9 @@ def get_directions(html):
 
 def get_rating(html):
 
-    rating = html.find('meta', property="og:rating")
-# this is randomly causing an error...
+    rating = html.find('span', {"class":"average"})
     if rating is not None:
-        rating = round(float(rating["content"]), 1)
+        rating = rating.text.strip()
         return(rating)
     else:
         return(0.0)
@@ -188,5 +168,3 @@ def get_rating(html):
 
 
 get_recipes()
-
-
