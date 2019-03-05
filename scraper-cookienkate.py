@@ -41,9 +41,9 @@ def get_recipes():
 
     for i, article in enumerate(html.find_all("div", {"class":"lcp_catlist_item"})):
         url = article.find("a")["href"]
-        if "-recipe/" in url and i < 1: # might try and find a better way, we lose recipes this way
-            print(url)
-            get_recipe_info(url)
+        #if "-recipe/" in url and i < 10: # might try and find a better way, we lose recipes this way
+            #print(url)
+        get_recipe_info(url)
             
 
 
@@ -52,7 +52,7 @@ def get_recipes():
 def get_recipe_info(url):
     raw_recipe_html = simple_get(url)
     recipe_html = BeautifulSoup(raw_recipe_html, "html.parser")
-
+# we should have error checking here
 
     get_recipe_description(recipe_html)
     name = get_recipe_name(recipe_html)
@@ -122,18 +122,31 @@ def get_time_info(html):
     total = 0
     raw_time = html.find('span', {"class":"tasty-recipes-total-time"})
     time = raw_time.text.strip()
+    print(time)
 
-    if "hours" in time and "minutes" in time:
-        hours, mins = time.split("hours ")
-        mins = mins[:-1]
-        total = (int(hours)*3600 + int(mins)*60)
-    elif "hours" in time and "minutes" not in time:
-        hours = time.split("hours")
-        total = (int(hours)*3600)
+    if "min" in time and "hour" not in time:
+        mins = time.split("minutes")
+        if len(mins) == 2:
+            total = int(mins[0])*60
+        else:
+            total = None
 
-    else:
-        mins = time.partition("m")[0]
-        total = int(mins) * 60
+    elif "hour" in time and "min" in time:
+        time = time.split(" ")
+        if len(time) == 4:
+            hours = int(time[0])
+            mins = int(time[2])
+            total = hours*3600+mins*60
+        else: 
+            total = None
+
+    elif "hour" in time and "min" not in time:
+        time = time.split(" ")
+        if len(time) == 2:
+            hours = int(time[0])
+            total = hours*3600
+        else:
+            total = None
 
     return total
 
