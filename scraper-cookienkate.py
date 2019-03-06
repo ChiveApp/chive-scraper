@@ -104,8 +104,7 @@ def get_ingredients(html):
             if not unit_found:
                 # What's a better name to give this? Item? 
                 unit = "Unit"
-            if ingredient_string[0].isdigit():
-                
+            
             quantity = ingredient_string[0]
             ingredient = ingredient_string[1]
 
