@@ -64,7 +64,7 @@ def get_recipe_info(url):
     ingredients = get_ingredients(recipe_html)
     print(ingredients)
     directions = get_directions(recipe_html)
-
+    print(directions)
 
 
 
@@ -104,6 +104,8 @@ def get_ingredients(html):
             if not unit_found:
                 # What's a better name to give this? Item? 
                 unit = "Unit"
+            if ingredient_string[0].isdigit():
+                
             quantity = ingredient_string[0]
             ingredient = ingredient_string[1]
 
@@ -121,44 +123,49 @@ def get_time_info(html):
     # Need to split into seconds
     total = 0
     raw_time = html.find('span', {"class":"tasty-recipes-total-time"})
-    time = raw_time.text.strip()
-    print(time)
+    if raw_time:
+        time = raw_time.text.strip()
+        print(time)
 
-    if "min" in time and "hour" not in time:
-        mins = time.split("minutes")
-        if len(mins) == 2:
-            total = int(mins[0])*60
-        else:
-            total = None
+        if "min" in time and "hour" not in time:
+            mins = time.split("minutes")
+            if len(mins) == 2:
+                total = int(mins[0])*60
+            else:
+                total = None
 
-    elif "hour" in time and "min" in time:
-        time = time.split(" ")
-        if len(time) == 4:
-            hours = int(time[0])
-            mins = int(time[2])
-            total = hours*3600+mins*60
-        else: 
-            total = None
+        elif "hour" in time and "min" in time:
+            time = time.split(" ")
+            if len(time) == 4:
+                hours = int(time[0])
+                mins = int(time[2])
+                total = hours*3600+mins*60
+            else: 
+                total = None
 
-    elif "hour" in time and "min" not in time:
-        time = time.split(" ")
-        if len(time) == 2:
-            hours = int(time[0])
-            total = hours*3600
-        else:
-            total = None
+        elif "hour" in time and "min" not in time:
+            time = time.split(" ")
+            if len(time) == 2:
+                hours = int(time[0])
+                total = hours*3600
+            else:
+                total = None
 
-    return total
+        return total
+    else:
+        return None
 
 # Directions
 def get_directions(html):
-    #directions = []
-    for i, li in enumerate(html.find_all('div',"tasty-recipe-instructions")):
-    #print(html.find_all('li', {"class":"tasty-recipe-instructions"}))
-       directions = li.text.strip()
+    directions = html.find('div',"tasty-recipe-instructions")
+    if directions:
 
-    directions = directions.split('.')
-    return directions
+        directions = directions.text.strip()
+
+        directions = directions.split('. ')
+        return directions
+    else:
+        return None
 
 # Ratinginfo
 
