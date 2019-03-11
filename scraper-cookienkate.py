@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import re
+import json
+import signal, sys
 from scraperConnection import simple_get
 from bs4 import BeautifulSoup
 
@@ -52,20 +54,28 @@ def get_recipes():
 def get_recipe_info(url):
     raw_recipe_html = simple_get(url)
     recipe_html = BeautifulSoup(raw_recipe_html, "html.parser")
-# we should have error checking here
 
-    get_recipe_description(recipe_html)
+    # Check if any required values are None to avoid getting errors
+    description = get_recipe_description(recipe_html)
+    
     name = get_recipe_name(recipe_html)
-    print(name)
-    rating = get_rating(recipe_html)
-    print(rating)
-    cook_time = get_time_info(recipe_html)
-    print("{} seconds".format(cook_time))
-    ingredients = get_ingredients(recipe_html)
-    print(ingredients)
-    directions = get_directions(recipe_html)
-    print(directions)
 
+    if name == "Bubblies on New Year's Eve": #fuck this check
+        return
+    rating = get_rating(recipe_html)
+    #print(rating)
+    cook_time = get_time_info(recipe_html)
+    #print("{} seconds".format(cook_time))
+    ingredients = get_ingredients(recipe_html)
+    #print(ingredients)
+    directions = get_directions(recipe_html)
+    if not directions:
+        return
+
+    # Create JSON Object 
+    data = {"name" : name, "description" : description, "ingredients" : ingredients, "directions" : directions, "time" : cook_time, "rating" : rating}
+    json_data = json.dumps(data)
+    print(json_data)
 
 
 # Title
@@ -76,7 +86,7 @@ def get_recipe_name(html):
 
 def get_recipe_description(html):
     for i, li in enumerate(html.find_all("div", {"class":"tasty-recipes-description"})):
-        print(li.text.strip())
+        return(li.text.strip())
 
 def get_ingredients(html):
     '''
@@ -104,7 +114,6 @@ def get_ingredients(html):
             if not unit_found:
                 # What's a better name to give this? Item? 
                 unit = "Unit"
-            
             quantity = ingredient_string[0]
             ingredient = ingredient_string[1]
 
@@ -120,11 +129,11 @@ def get_ingredients(html):
 # Time return is in seconds
 def get_time_info(html):
     # Need to split into seconds
-    total = 0
+    total = None
+    time = None
     raw_time = html.find('span', {"class":"tasty-recipes-total-time"})
     if raw_time:
         time = raw_time.text.strip()
-        print(time)
 
         if "min" in time and "hour" not in time:
             mins = time.split("minutes")
@@ -150,21 +159,18 @@ def get_time_info(html):
             else:
                 total = None
 
-        return total
-    else:
-        return None
+    return total
 
 # Directions
 def get_directions(html):
-    directions = html.find('div',"tasty-recipe-instructions")
+    #directions = []
+    directions = None
+    for i, li in enumerate(html.find_all('div',"tasty-recipe-instructions")):
+    #print(html.find_all('li', {"class":"tasty-recipe-instructions"}))
+       directions = li.text.strip()
     if directions:
-
-        directions = directions.text.strip()
-
-        directions = directions.split('. ')
-        return directions
-    else:
-        return None
+        directions = directions.split('.')
+    return directions
 
 # Ratinginfo
 
@@ -187,3 +193,17 @@ def get_rating(html):
 
 
 get_recipes()
+
+
+# This being a hoe
+# def sig_handler(sig, frame):
+#     '''
+#     Exits the program gracefully when CTRL+C is pressed
+#     '''
+#     print("hello")
+    
+
+#     sys.exit(0)
+
+# signal.signal(signal.SIGINT, sig_handler)
+# signal.pause()
