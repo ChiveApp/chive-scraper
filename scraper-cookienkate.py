@@ -9,15 +9,27 @@ from bs4 import BeautifulSoup
 
 
 
+def fix_unicode(string):
+    unicode_dict = {"\u00bd" : "1/2", "\u00bc" : "1/4", "\u2153" : "1/3", "\u00be" : "3/4", 
+    "\u2019" : "'","\u201c":"\"", "\u2033":"\"","\u201d":"\"","\u00e9" : "e" ,
+    "\u2014" : "-","\u00f1":"n" , "\u215b":"1/8", "\u00d7":"x" ,"\u2154":"2/3" ,"\u00a0" : "",
+    "\u00ed" : "i", "\u00e8" : "e", "\u00ee" : "i", "\u00e7" : "c", "\u00b0" : " degrees ",
+    "\u2026" : "...", "\u00e1" : "a", "\u2044" : "/", "\u2013" : "-", "\u00ae" : "", 
+    "\u00e4" : "a"}
+    for unicode_key in unicode_dict:
+        string = string.replace(unicode_key, unicode_dict[unicode_key])
+    return string
 
-def get_recipe_pages():
+def get_recipe_pages(page):
     '''
-    Will start from recipe index on cookie and kate page then scrape each recipe in the diet
-    For now we're doing only vegan
+    Will start from recipe index on cookie and kate page then scrape each recipe
     :param query:
     :return:
     '''
-    url = "https://cookieandkate.com/vegan-recipe-index/"
+    if page == 0:
+        url = "https://cookieandkate.com/category/food-recipes/"
+    else:
+        url = "https://cookieandkate.com/category/food-recipes/page/{}".format(page)
     #url = "https://cookieandkate.com/2019/sweet-potato-arugula-wild-rice-salad-recipe/"
     raw_html = simple_get(url)
 
@@ -35,18 +47,17 @@ def get_recipes():
     :param search_type, num_recipes, query:
     :return:
     """
+    for page in range(0, 35):
+        html = get_recipe_pages(page)
 
-    html = get_recipe_pages()
+        # nested findall searching for fixed-recipe-card and pulling url from a href
 
-    # This is where forks or threads would be great
-    # nested findall searching for fixed-recipe-card and pulling url from a href
+        for i, article in enumerate(html.find_all("div", {"class":"lcp_catlist_item"})):
+            url = article.find("a")["href"]
 
-    for i, article in enumerate(html.find_all("div", {"class":"lcp_catlist_item"})):
-        url = article.find("a")["href"]
-        #if "-recipe/" in url and i < 10: # might try and find a better way, we lose recipes this way
-            #print(url)
-        get_recipe_info(url)
-            
+            get_recipe_info(url)
+        print("Page: {} visited".format(page))
+
 
 
 
@@ -71,9 +82,10 @@ def get_recipe_info(url):
     directions = get_directions(recipe_html)
     if not directions:
         return
+    image = get_image(recipe_html)
 
     # Create JSON Object 
-    data = {"name" : name, "description" : description, "ingredients" : ingredients, "directions" : directions, "time" : cook_time, "rating" : rating}
+    data = {"name" : name, "description" : description, "ingredients" : ingredients, "directions" : directions, "time" : cook_time, "rating" : rating, "image" : image}
     json_data = json.dumps(data)
     print(json_data)
 
@@ -81,12 +93,16 @@ def get_recipe_info(url):
 # Title
 def get_recipe_name(html):
     for i, li in enumerate(html.find_all("h1", {"class":"entry-title"})):
-        return(li.text.strip()) #TODO get this in a better form
+        return(fix_unicode(li.text.strip())) #TODO get this in a better form
 
 
 def get_recipe_description(html):
     for i, li in enumerate(html.find_all("div", {"class":"tasty-recipes-description"})):
-        return(li.text.strip())
+        description = li.text.strip()
+        # for unicode_key in unicode_dict:
+        #     description = description.replace(unicode_key, unicode_dict[unicode_key])
+        description = fix_unicode(description)
+        return(description)
 
 def get_ingredients(html):
     '''
@@ -96,30 +112,35 @@ def get_ingredients(html):
     '''
 
 
-    units = [" teaspoons ", " teaspoon ", " tablespoons ", " tablespoon ", " cups ", " cup ", " ounces ", " ounce ", " pounds ", " pound "]
-
+    units = ["Pinch ", " teaspoons ", " teaspoon ", " tablespoons ", " tablespoon ", " cups ", " cup ", " ounces ", " ounce ", " pounds ", " pound ", "Unit"]
     ingredients = []
-    ingredient_string = None
+    whole_ingredient_string = None
     unit_found = False
     for i, div in enumerate(html.find_all('div', {"class":"tasty-recipe-ingredients"})):
         for li in div.find_all("li"):
-            ingredient_string = li.text.strip()
+            whole_ingredient_string = li.text.strip()
+            # for unicode_key in unicode_dict:
+            #     frac = unicode_dict[unicode_key]
+            #     whole_ingredient_string = whole_ingredient_string.replace(unicode_key, frac)
+            whole_ingredient_string = fix_unicode(whole_ingredient_string)
 
             # We are going to split up the ingredient string by measurement first
             for unit in units:
-                if unit in ingredient_string:
-                    ingredient_string = ingredient_string.split(unit)
+                if unit in whole_ingredient_string:
+                    ingredient_string = whole_ingredient_string.split(unit)
                     unit_found = True
                     break
             if not unit_found:
-                # What's a better name to give this? Item? 
-                unit = "Unit"
-            quantity = ingredient_string[0]
-            ingredient = ingredient_string[1]
+                unit = ""
+                quantity = ""
+                ingredient = whole_ingredient_string
+            else:
+                quantity = ingredient_string[0]
+
+                ingredient = ingredient_string[1]
 
 
-            ingredients.append([quantity, unit, ingredient])
-       #ingredients = ingredient_string.split()
+            ingredients.append([ingredient, quantity, unit])
     return(ingredients)
 
 
@@ -128,7 +149,6 @@ def get_ingredients(html):
 
 # Time return is in seconds
 def get_time_info(html):
-    # Need to split into seconds
     total = None
     time = None
     raw_time = html.find('span', {"class":"tasty-recipes-total-time"})
@@ -166,10 +186,11 @@ def get_directions(html):
     #directions = []
     directions = None
     for i, li in enumerate(html.find_all('div',"tasty-recipe-instructions")):
-    #print(html.find_all('li', {"class":"tasty-recipe-instructions"}))
        directions = li.text.strip()
     if directions:
+        directions = fix_unicode(directions)
         directions = directions.split('.')
+
     return directions
 
 # Ratinginfo
@@ -185,10 +206,11 @@ def get_rating(html):
         return(0.0)
 
 
-# Photo (if we can get into database)
-# <div class="hero-photo__wrap">
-# some have a video as the main "picture"
 
+def get_image(html):
+    photos = [x['src'] for x in html.findAll('img')]
+    photo = photos[3] # Hard coded cause fuck
+    return(photo)
 
 
 

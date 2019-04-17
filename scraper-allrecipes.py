@@ -225,14 +225,14 @@ def get_rating(html):
 # some have a video as the main "picture"
 
 
-search_type = int(input("Search type: "))
-num_recipes = input("Number Recipes: ")
+# search_type = int(input("Search type: "))
+# num_recipes = input("Number Recipes: ")
 
-if search_type == 1:  # Ingredients
-    search_input = input("Ingredients to search for: ")
+# if search_type == 1:  # Ingredients
+#     search_input = input("Ingredients to search for: ")
 
-if search_type == 2: # Name
-    search_input = input("Search: ")
+# if search_type == 2: # Name
+#     search_input = input("Search: ")
 
 get_recipes(search_type, int(num_recipes), search_input)
 
