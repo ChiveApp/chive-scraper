@@ -3,6 +3,8 @@
 import re
 import json
 import signal, sys
+
+from pymongo import MongoClient
 from scraperConnection import simple_get
 from bs4 import BeautifulSoup
 
@@ -33,6 +35,7 @@ def get_recipe_pages(page):
     #url = "https://cookieandkate.com/2019/sweet-potato-arugula-wild-rice-salad-recipe/"
     raw_html = simple_get(url)
 
+
     if raw_html is not None:
         html = BeautifulSoup(raw_html, "html.parser")
         return html
@@ -47,15 +50,23 @@ def get_recipes():
     :param search_type, num_recipes, query:
     :return:
     """
-    for page in range(0, 35):
+
+
+    pyclient = MongoClient()
+    db = pyclient["chive"]
+    collection = db["recipes"]
+
+    for page in range(31, 35):
         html = get_recipe_pages(page)
+
 
         # nested findall searching for fixed-recipe-card and pulling url from a href
 
         for i, article in enumerate(html.find_all("div", {"class":"lcp_catlist_item"})):
             url = article.find("a")["href"]
+            collection.insert_one(get_recipe_info(url))
 
-            get_recipe_info(url)
+            #get_recipe_info(url)
         print("Page: {} visited".format(page))
 
 
@@ -86,9 +97,8 @@ def get_recipe_info(url):
 
     # Create JSON Object 
     data = {"name" : name, "description" : description, "ingredients" : ingredients, "directions" : directions, "time" : cook_time, "rating" : rating, "image" : image}
-    json_data = json.dumps(data)
-    print(json_data)
-
+    #json_data = json.dumps(data)
+    return(data)
 
 # Title
 def get_recipe_name(html):
@@ -119,9 +129,6 @@ def get_ingredients(html):
     for i, div in enumerate(html.find_all('div', {"class":"tasty-recipe-ingredients"})):
         for li in div.find_all("li"):
             whole_ingredient_string = li.text.strip()
-            # for unicode_key in unicode_dict:
-            #     frac = unicode_dict[unicode_key]
-            #     whole_ingredient_string = whole_ingredient_string.replace(unicode_key, frac)
             whole_ingredient_string = fix_unicode(whole_ingredient_string)
 
             # We are going to split up the ingredient string by measurement first

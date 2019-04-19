@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import re
+import json
+
+from pymongo import MongoClient
 from scraperConnection import simple_get
 from bs4 import BeautifulSoup
 
@@ -28,15 +31,19 @@ from bs4 import BeautifulSoup
 
 
 
-def get_name_search_html(query):
+def get_html(page):
     '''
     This function grabs the search html for a recipe search based on name of meal
 
     :param query:
     :return:
     '''
-    query_url = query.replace(" ", "%20")
-    search_url = "https://www.allrecipes.com/search/results/?wt={}&sort=re".format(query_url)
+    #query_url = query.replace(" ", "%20")
+    search = "pork"
+    if page == 0:
+        search_url = "https://www.allrecipes.com/search/results/?wt={}&sort=re".format(search)
+    else:
+        search_url = "https://www.allrecipes.com/search/results/?wt={}&sort=re&page={}".format(search, page)
 
     raw_search_html = simple_get(search_url)
 
@@ -48,51 +55,34 @@ def get_name_search_html(query):
         print ("failed")
 
 
-# The ingredient query need to be separated by commas, which might be an issue in the future
-def get_ingredient_search_html(query):
-    '''
-    this function grabs the search html for a recipe search based on ingredient input
-    :param query:
-    :return:
-    '''
-    query_url = query.replace(", ", ",")
-    search_url = "https://www.allrecipes.com/search/results/?ingIncl={}&sort=re".format(query_url)
-
-    raw_search_html = simple_get(search_url)
-
-    if raw_search_html is not None:
-        search_html = BeautifulSoup(raw_search_html, "html.parser")
-
-        return search_html
-    else:
-        print("failed")
 
 
-def get_recipes(search_type,num_recipes, query):
+def get_recipes():
     """
     This function returns n recipes with all the data associated with them
     based on ingredient, word, or category search
     :param search_type, num_recipes, query:
     :return:
     """
-    # Could make this into it's own function as well
-    if search_type == 0:
-        # search_html = get_category_search_html
-        print("henlo")
-    elif search_type == 1:
-        search_html = get_ingredient_search_html(query)
-    else:
-        search_html = get_name_search_html(query)
+    pyclient = MongoClient()
+    db = pyclient["chive"]
+    collection = db["recipes"]
 
-    # This is where forks or threads would be great
-    # nested findall searching for fixed-recipe-card and pulling url from a href
-    for i, article in enumerate(search_html.find_all("article", {"class": "fixed-recipe-card"})):
-        recipe_url = article.find("a")["href"]
-        # call a recipe info function
-        # place return into a database or what not
-        get_recipe_info(recipe_url)
-        if i == num_recipes-1:
-            break
+    for page in range(18, 255):
+        search_html = get_html(page)
+
+        # This is where forks or threads would be great
+        # nested findall searching for fixed-recipe-card and pulling url from a href
+        for i, article in enumerate(search_html.find_all("article", {"class": "fixed-recipe-card"})):
+            recipe_url = article.find("a")["href"]
+            # call a recipe info function
+            # place return into a database or what not
+            data_to_insert = get_recipe_info(recipe_url)
+
+            collection.insert_one(data_to_insert)
+            #get_recipe_info(recipe_url)
+        print("Page: {} visited".format(page))
+
 
 
 def get_recipe_info(url):
@@ -101,10 +91,18 @@ def get_recipe_info(url):
 
 
     name = get_recipe_name(recipe_html)
+    description = get_description(recipe_html)
     rating = get_rating(recipe_html)
     cook_time = get_time_info(recipe_html)
     ingredients = get_ingredients(recipe_html)
     directions = get_directions(recipe_html)
+    image = get_image(recipe_html)
+    data = {"name" : name, "description" : description, "ingredients" : ingredients, "directions" : directions, "time" : cook_time, "rating" : rating, "image" : image}
+    
+    return(data)    
+
+    #json_data = json.dumps(data)
+   #print(json_data)
 
 
 
@@ -116,81 +114,73 @@ def get_recipe_name(html):
         return(li.text.strip()) #TODO get this in a better form
 
 
+def get_description(html):
+    description = ""
+    for i, li in enumerate(html.find_all("div", {"class":"submitter__description"})):
+        description = li.text.strip()
+    return(description)
+
 def get_ingredients(html):
 
-
-    units = ["teaspoons ", "teaspoon ", "tablespoons ", "tablespoon ", "cups ", "cup ", " ounces", " ounce", "pounds ", "pound "]
-    #units = ["teaspoon", "tablespoon", "cup", "ounce","pound"]
+    units = ["pinch","teaspoons ", "teaspoon ", "tablespoons ", "tablespoon ", "cups ", "cup ", "ounces", "ounce", "pounds ", "pound "]
 
     ingredients = []
     for i, li in enumerate(html.find_all('li', {"class":"checkList__line"})):
+        unit_found = False
 
         ingredient_string = li.text.strip()
-        #ingredients.append(li.text.strip())
+        whole_ingredient_string = li.text.strip()
+
+        if ingredient_string != "Add all ingredients to list":
+            for unit in units:
+                if unit in ingredient_string:
+                    ingredient_string = ingredient_string.split(unit)
+                    unit_found = True
+                    break
+            if not unit_found:
+                ingredient_string = ingredient_string.split(" ")
+                if ingredient_string[0].isdigit(): 
+                    unit = ""
+                    quantity = ingredient_string[0]
+                    ingredient = ingredient_string[1:]
+                    ingredient = ' '.join(ingredient)
+                else:
+                    unit = ""
+                    quantity = ""
+                    ingredient = whole_ingredient_string
+            else:
+                quantity = ingredient_string[0]
+                ingredient = ingredient_string[1]
+            #ingredient_split_list = ingredient_string.split(" ")
 
 
-        if ingredient_string == "Add all ingredients to list":
-            return
+            ingredients.append({ "ingredient" : ingredient, "unit" : unit, "quantity" : quantity})
+    #del ingredients[-1]
 
-        ingredient_split_list = []
-        for unit in units:
-            if unit in ingredient_string:
-                ingredient_string = ingredient_string.replace(unit, "")
-                break
-            unit = None
-        #ingredient_split_list = ingredient_string.split(" ")
-
-        ingredient_split_list = re.sub('[()]', '', ingredient_string).split(" ")
-
-        print(ingredient_split_list)
-
-        for elem in ingredient_split_list:
-            if "/" in elem:
-                ingredient_split_list[ingredient_split_list.index(elem)] = float(elem[0])/float(elem[2])
+    return(ingredients)
 
 
-        if unit == " ounce" or unit == " ounces":
-            quantity = float(ingredient_split_list[0])*float(ingredient_split_list[1])
-
-            del ingredient_split_list[0]
-            del ingredient_split_list[0]
-            ingredient = " ".join(ingredient_split_list)
-        else:
-            quantity = float(ingredient_split_list[0])
-            del ingredient_split_list[0]
-
-            ingredient = " ".join(ingredient_split_list)
-
-        ingredients.append([ingredient, unit, quantity])
-
-        # print("QUANTITY: ", quantity)
-        # print("UNIT: ", unit)
-        # print("INGREDIENT: ", ingredient)
-    return(ingredients)   
-
-
-
-
-# for i, li in enumerate(html.find_a)
-
-# Time info
-# li class="prepTime__item" 3 of them usually
-# They aria-labels which may or may not be an issue
 
 # Time return is in seconds
 def get_time_info(html):
+    total = 0
     # Need to split into seconds
     for i, li in enumerate(html.find_all('li', {"class":"prepTime__item"})):
         if "Ready In" in li.text.strip():
             time = li.text.strip()
+            time = time.lower()
+
 
             time = time[8:]
-            if "h" in time and "m" in time:
+            if "d" in time:
+                days = time.split("d")[0]
+                total = (int(days)* 8400)
+            elif "h" in time and "m" in time:
                 hours, mins = time.split("h ")
                 mins = mins[:-1]
                 total = (int(hours)*3600 + int(mins)*60)
             elif "h" in time and "m" not in time:
-                hours = time.split("h")
+                hours = time.split("h")[0]
                 total = (int(hours)*3600)
 
             else:
@@ -203,7 +193,8 @@ def get_time_info(html):
 def get_directions(html):
     directions = []
     for i, li in enumerate(html.find_all('li', {"class":"step"})):
-        directions.append(li.text.strip())
+        if "Watch Now" in li.text.strip():
+            directions.append(li.text.strip())
     return directions
 
 # Ratinginfo
@@ -218,6 +209,13 @@ def get_rating(html):
         return(rating)
     else:
         return(0.0)
+
+def get_image(html):
+    photo =""
+    for i,li in enumerate(html.find_all('img', {"class" : "rec-photo"})):
+        photo = li['src']
+
+    return(photo)
 
 
 # Photo (if we can get into database)
@@ -234,6 +232,6 @@ def get_rating(html):
 # if search_type == 2: # Name
 #     search_input = input("Search: ")
 
-get_recipes(search_type, int(num_recipes), search_input)
+get_recipes()
 
 
