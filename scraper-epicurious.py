@@ -14,8 +14,8 @@ def get_html(page):
     :param query:
     :return:
     '''
-    #query_url = query.replace(" ", "%20")
- 
+
+    # Overall website 
     search_url = "https://www.epicurious.com/search?content=recipe&page={}&sort=highestRated".format(page)
 
     raw_search_html = simple_get(search_url)
@@ -26,7 +26,6 @@ def get_html(page):
         return search_html
     else:
         print ("failed")
-
 
 
 
@@ -42,29 +41,35 @@ def get_recipes():
     collection = db["recipes"]
         
     recipes = []
+
+    # Pages for loop, inserts each recipe
+
     #for page in range(1, 1994):
-    for page in range(1, 3):
+    for page in range(20, 40):
         search_html = get_html(page)
 
-
-        # This is where forks or threads would be great
-        # nested findall searching for fixed-recipe-card and pulling url from a href
+        # Pulls individual recipe webstie from recipe card
         for i, article in enumerate(search_html.find_all("article", {"class": "recipe-content-card"})):
             recipe_url = article.find("a")["href"]
-            # call a recipe info function
-            # place return into a database or what not
 
+            # gets data and fixes recipe link
             data_to_insert = get_recipe_info("https://www.epicurious.com{}".format(recipe_url))
-            #collection.insert_one(data_to_insert)
-            #get_recipe_info(recipe_url)
-            recipes.append(data_to_insert)
-        
-       # print("Page: {} visited".format(page))
-    print(json.dumps(recipes))
+            
+            # Inserts into mongo database
+            collection.insert_one(data_to_insert)
+
+        # Print page to see progress of scraper
+        print("Page: {} visited".format(page))
 
 
 
 def get_recipe_info(url):
+    '''
+    Function to call all recipe information functions
+    combines into final data dictionary 
+    input: url for recipe
+    output data dictionary
+    '''
     raw_recipe_html = simple_get(url)
     recipe_html = BeautifulSoup(raw_recipe_html, "html.parser")
 
@@ -79,31 +84,50 @@ def get_recipe_info(url):
     
     return(data)    
 
-    #json_data = json.dumps(data)
-   #print(json_data)
 
 
 def get_recipe_name(html):
-    #h1 itemprop = "name"
+    '''
+    Function to retrieve recipe name from epicurious recipe site
+    input: html : BeautifulSoup object
+    output: name : string
+    '''
 
     name = html.find("h1", {"itemprop" : "name"}).text.strip()
     return(name)
 
 def get_rating(html):
+    '''
+    Function to retrieve rating of recipe 
+    input: html : BeautifulSoup object
+    output: rating : string
+    '''
     rating = html.find("span", {"class" : "rating"})
     rating = rating.text.strip()
     return(rating)
 
 def get_description(html):
-    desc = html.find("div", {"itemprop" : "description"}).find('p').text.strip()
+    '''
+    Function to retrieve description, if available, of recipe
+    input: html : BeautifulSoup object
+    output: desc : string 
+    '''
+    try:
+        desc = html.find("div", {"itemprop" : "description"}).find('p').text.strip()
+    except Exception as _:
+        desc = ""
     return(desc)
+
 
 def get_ingredients(html):
     '''
-    good practice :)
+    Function to retrieve ingredients split by ingredient groups, if necessary, and parses
+    them into ingredient quantity and unit of the ingredient string
+    input: html : BeautifulSoup object
+    output: ingredients : dict(ingredient : string, quantity : string, unit : string)
     '''
-    units = ["pinch", "pint", "pints" ,"tsp.", "teaspoons", "teaspoon", "Tbsp. ", "tablespoons", "tablespoon", "cups ", "cup ", "ounces", "ounce", "pounds ", "pound "]
-
+    # Unit array used in parsing
+    units = ["pinch ", "pint ", "pints " ,"tsp. ", "teaspoons ", "teaspoon ", "Tbsp. ", "tablespoons ", "tablespoon ", "cups ", "cup ", "ounces ", "ounce ", "oz. ", "pounds ", "pound ", "lb. "]
 
     # for ingredient groups look for strong tag else default will be ingredients
     ingredient_groups = html.find_all("li", {"class" : "ingredient-group"})
@@ -119,9 +143,11 @@ def get_ingredients(html):
         try:
             # more than one group
             group_name = group.find("strong").text.strip()
-        except Exception as e:
+        except Exception as _:
+            # one ingredient group
             group_name = "Ingredients"
 
+        # Holds all ingredients in one ingredient group ie ("For dough : flour, etc")
         group_ingredients = []
         for i, li in enumerate(group.find_all('li', {"class":"ingredient"})):
             unit_found = False
@@ -149,7 +175,7 @@ def get_ingredients(html):
                 ingredient = ingredient_string[1]
 
 
-            group_ingredients.append({"ingredient" : ingredient, "quantity" : quantity, "unit" : unit})
+            group_ingredients.append({"ingredient" : ingredient.strip(), "quantity" : quantity.strip(), "unit" : unit.strip()})
         
         ingredients[group_name] = group_ingredients
     return(ingredients)
@@ -159,6 +185,12 @@ def get_ingredients(html):
 
 
 def get_directions(html):
+    '''
+    Function to retrieve directions for recipe
+    input: html : BeautifulSoup object
+    output: directions : list(direction : string)
+    '''
+    # Holds all directions in this array
     directions = []
     for i, li in enumerate(html.find_all("li", {"class": "preparation-step"})):
         step = li.text.strip()
@@ -167,9 +199,20 @@ def get_directions(html):
 
 
 def get_image(html):
-    image = html.find("div", {"class" : "recipe-image"}).find('source')['srcset']
+    '''
+    Function to retrieve image src for recipe
+    input: html : BeautifulSoup object
+    output: image : string
+    '''
+    try:
+        image = html.find("div", {"class" : "recipe-image"}).find('source')['srcset']
+    except Exception as _:
+        image = ""
+
     return(image)
 
 
-# Main here but I'm lazy
-get_recipes()
+#def main():
+if __name__ == "__main__":
+    # Start the scraper
+    get_recipes()
