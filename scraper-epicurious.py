@@ -80,7 +80,7 @@ def get_recipe_info(url):
     ingredients = get_ingredients(recipe_html)
     directions = get_directions(recipe_html)
     image = get_image(recipe_html)
-    data = {"name" : name, "description" : description, "ingredients" : ingredients, "directions" : directions, "rating" : rating, "image" : image}
+    data = {"name" : name, "description" : description, "ingredients" : ingredients, "directions" : directions, "rating" : rating, "image" : image, "source": url, "sitename": "epicurious"}
     
     return(data)    
 
