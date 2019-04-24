@@ -141,7 +141,7 @@ def get_ingredients(html):
     ingredient_groups = html.find_all("li", {"class" : "ingredient-group"})
 
     # continue search for ingredients on default group case
-    ingredients = {}
+    ingredients = []
     for group in ingredient_groups:
 
         # continue search for ingredients on default group case
@@ -185,7 +185,9 @@ def get_ingredients(html):
 
             group_ingredients.append({"name" : ingredient.strip(), "quantity" : quantity.strip(), "unit" : unit.strip()})
         
-        ingredients[group_name] = group_ingredients
+            group = {"groupName": group_name, "ingredients": group_ingredients}
+
+        ingredients.append(group)
     return(ingredients)
 
 
