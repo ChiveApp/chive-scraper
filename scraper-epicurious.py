@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import json
+import base64
+import requests
 
 from pymongo import MongoClient
 from scraperConnection import simple_get
@@ -80,7 +82,11 @@ def get_recipe_info(url):
     ingredients = get_ingredients(recipe_html)
     directions = get_directions(recipe_html)
     image = get_image(recipe_html)
-    data = {"name" : name, "description" : description, "ingredients" : ingredients, "directions" : directions, "rating" : rating, "image" : image, "source": url, "sitename": "epicurious"}
+
+    data = {"name" : name, "description" : description, "ingredients" : ingredients, 
+    "directions" : directions, "rating" : rating, "image" : image, "source": url, 
+    "siteName": "epicurious"}
+    print(data)
     
     return(data)    
 
@@ -104,6 +110,8 @@ def get_rating(html):
     '''
     rating = html.find("span", {"class" : "rating"})
     rating = rating.text.strip()
+    rating = rating.split("/")
+    rating = float(rating[0])/float(rating[1])
     return(rating)
 
 def get_description(html):
@@ -175,7 +183,7 @@ def get_ingredients(html):
                 ingredient = ingredient_string[1]
 
 
-            group_ingredients.append({"ingredient" : ingredient.strip(), "quantity" : quantity.strip(), "unit" : unit.strip()})
+            group_ingredients.append({"name" : ingredient.strip(), "quantity" : quantity.strip(), "unit" : unit.strip()})
         
         ingredients[group_name] = group_ingredients
     return(ingredients)
@@ -205,7 +213,8 @@ def get_image(html):
     output: image : string
     '''
     try:
-        image = html.find("div", {"class" : "recipe-image"}).find('source')['srcset']
+        image_src = html.find("div", {"class" : "recipe-image"}).find('source')['srcset']
+        image = base64.b64encode(requests.get(image_src).content)
     except Exception as _:
         image = ""
 
