@@ -46,8 +46,8 @@ def get_recipes():
 
     # Pages for loop, inserts each recipe
 
-    #for page in range(1, 1994):
-    for page in range(20, 40):
+    for page in range(1, 1994):
+    #for page in range(20, 40):
         search_html = get_html(page)
 
         # Pulls individual recipe webstie from recipe card
@@ -86,7 +86,7 @@ def get_recipe_info(url):
     data = {"name" : name, "description" : description, "ingredients" : ingredients, 
     "directions" : directions, "rating" : rating, "image" : image, "source": url, 
     "siteName": "epicurious"}
-    print(data)
+    #print(data)
     
     return(data)    
 
