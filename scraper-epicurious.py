@@ -3,6 +3,8 @@
 import json
 import base64
 import requests
+import os
+from multiprocessing import Pool, cpu_count
 
 from pymongo import MongoClient
 from scraperConnection import simple_get
@@ -31,23 +33,36 @@ def get_html(page):
 
 
 
-def get_recipes():
+def run():
     """
     This function returns n recipes with all the data associated with them
     based on ingredient, word, or category search
     :param search_type, num_recipes, query:
     :return:
     """
+
+    page = 1
+    offset = int(1990/cpu_count())
+    page_list = []
+    for i in range(cpu_count()):
+        page_list.append((page, page+offset))
+        page = page+offset+1
+    with Pool(cpu_count()) as p:
+        p.map(get_recipes, page_list)
+        
+
+
+def get_recipes(pages):
+    start = pages[0]
+    end = pages[1]
     pyclient = MongoClient()
     db = pyclient["chive"]
     collection = db["recipes"]
-        
     recipes = []
 
     # Pages for loop, inserts each recipe
 
-    for page in range(1, 1994):
-    #for page in range(20, 40):
+    for page in range(start, end):
         search_html = get_html(page)
 
         # Pulls individual recipe webstie from recipe card
@@ -226,4 +241,4 @@ def get_image(html):
 #def main():
 if __name__ == "__main__":
     # Start the scraper
-    get_recipes()
+    run()
