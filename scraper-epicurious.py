@@ -235,7 +235,7 @@ def get_image(html):
     # Verify ./../chive-frontend/storage/recipes/ exists
 
     BASE_DIR = os.path.dirname(os.path.realpath(__file__))
-    directory = "{}/../chive-frontend/storage/recipes".format(BASE_DIR)
+    directory = "{}/../chive-backend/storage/recipes".format(BASE_DIR)
     if not os.path.isdir(directory):
         #raise Exception("{} does not exist!".format(directory))
         os.makedirs(directory)
