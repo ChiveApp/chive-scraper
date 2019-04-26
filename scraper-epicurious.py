@@ -4,8 +4,10 @@ import json
 import base64
 import requests
 import os
-from multiprocessing import Pool, cpu_count
 
+from io import BytesIO
+from PIL import Image
+from multiprocessing import Pool, cpu_count
 from pymongo import MongoClient
 from scraperConnection import simple_get
 from bs4 import BeautifulSoup
@@ -49,10 +51,12 @@ def run():
         page = page+offset+1
     with Pool(cpu_count()) as p:
         p.map(get_recipes, page_list)
+
         
 
 
 def get_recipes(pages):
+    print(pages)
     start = pages[0]
     end = pages[1]
     pyclient = MongoClient()
@@ -101,8 +105,7 @@ def get_recipe_info(url):
     data = {"name" : name, "description" : description, "ingredients" : ingredients, 
     "directions" : directions, "rating" : rating, "image" : image, "source": url, 
     "siteName": "epicurious"}
-    #print(data)
-    
+
     return(data)    
 
 
@@ -229,13 +232,50 @@ def get_image(html):
     input: html : BeautifulSoup object
     output: image : string
     '''
+    # Verify ./../chive-frontend/storage/recipes/ exists
+
+    BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+    directory = "{}/../chive-frontend/storage/recipes".format(BASE_DIR)
+    if not os.path.isdir(directory):
+        #raise Exception("{} does not exist!".format(directory))
+        os.makedirs(directory)
+   
+    # Download from src...
     try:
         image_src = html.find("div", {"class" : "recipe-image"}).find('source')['srcset']
-        image = base64.b64encode(requests.get(image_src).content)
-    except Exception as _:
-        image = ""
 
-    return(image)
+        image_name = image_src.split("/")
+        image_name = image_name[-1].split(".")[0]
+        image_name += ".png"
+
+        image = requests.get(image_src)
+        image = image.content
+        image = Image.open(BytesIO(image))
+
+        width, height = image.size
+
+        desired_size = (620, 413)
+
+        if width != desired_size[0] or height != desired_size[1]:
+            image.resize(desired_size, Image.ANTIALIAS)
+
+        image_path = "{}/{}".format(directory, image_name)
+
+
+        image.save(image_path, format='PNG')
+
+    except Exception as exc:
+        print("Image issue", exc)
+        image_name = ""
+
+    return(image_name)
+
+
+    # Save in respective folder
+
+    # Assign name of recipe file 
+
+
 
 
 #def main():
