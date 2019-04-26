@@ -160,7 +160,7 @@ def get_ingredients(html):
 
     # continue search for ingredients on default group case
     ingredients = []
-    for group in ingredient_groups:
+    for ingredient_group in ingredient_groups:
 
         # continue search for ingredients on default group case
 
@@ -168,14 +168,14 @@ def get_ingredients(html):
 
         try:
             # more than one group
-            group_name = group.find("strong").text.strip()
+            group_name = ingredient_group.find("strong").text.strip()
         except Exception as _:
             # one ingredient group
             group_name = "Ingredients"
 
         # Holds all ingredients in one ingredient group ie ("For dough : flour, etc")
         group_ingredients = []
-        for i, li in enumerate(group.find_all('li', {"class":"ingredient"})):
+        for i, li in enumerate(ingredient_group.find_all('li', {"class":"ingredient"})):
             unit_found = False
 
             ingredient_string = li.text.strip()
@@ -200,17 +200,15 @@ def get_ingredients(html):
                 quantity = ingredient_string[0]
                 ingredient = ingredient_string[1]
 
-
             group_ingredients.append({"name" : ingredient.strip(), "quantity" : quantity.strip(), "unit" : unit.strip()})
-        
-            group = {"groupName": group_name, "ingredients": group_ingredients}
+
+        if len(group_ingredients) == 0:
+            continue
+
+        group = {"groupName": group_name, "ingredients": group_ingredients}
 
         ingredients.append(group)
     return(ingredients)
-
-
-        
-
 
 def get_directions(html):
     '''
