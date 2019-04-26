@@ -116,8 +116,11 @@ def get_recipe_name(html):
     input: html : BeautifulSoup object
     output: name : string
     '''
-
-    name = html.find("h1", {"itemprop" : "name"}).text.strip()
+    try: 
+        name = html.find("h1", {"itemprop" : "name"}).text.strip()
+    except Exception as exc:
+        print(exc)
+        name = ""
     return(name)
 
 def get_rating(html):
@@ -126,10 +129,14 @@ def get_rating(html):
     input: html : BeautifulSoup object
     output: rating : string
     '''
-    rating = html.find("span", {"class" : "rating"})
-    rating = rating.text.strip()
-    rating = rating.split("/")
-    rating = float(rating[0])/float(rating[1])
+    try:
+        rating = html.find("span", {"class" : "rating"})
+        rating = rating.text.strip()
+        rating = rating.split("/")
+        rating = float(rating[0])/float(rating[1])
+    except Exception as exc:
+        print(exc)
+        rating = 0
     return(rating)
 
 def get_description(html):
@@ -140,7 +147,8 @@ def get_description(html):
     '''
     try:
         desc = html.find("div", {"itemprop" : "description"}).find('p').text.strip()
-    except Exception as _:
+    except Exception as exc:
+        print(exc)
         desc = ""
     return(desc)
 
@@ -220,9 +228,13 @@ def get_directions(html):
     '''
     # Holds all directions in this array
     directions = []
-    for i, li in enumerate(html.find_all("li", {"class": "preparation-step"})):
-        step = li.text.strip()
-        directions.append(step)
+    try: 
+        for i, li in enumerate(html.find_all("li", {"class": "preparation-step"})):
+            step = li.text.strip()
+            directions.append(step)
+    except Exception as exc:
+        print(exc)
+        directions = ""
     return(directions)
 
 
