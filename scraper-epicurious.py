@@ -245,8 +245,9 @@ def get_image(html):
         image_src = html.find("div", {"class" : "recipe-image"}).find('source')['srcset']
 
         image_name = image_src.split("/")
-        image_name = image_name[-1].split(".")[0]
+        image_name = image_name[-1].split(".")[0].lower()
         image_name += ".png"
+
 
         image = requests.get(image_src)
         image = image.content
